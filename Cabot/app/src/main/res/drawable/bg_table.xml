@@ -1,0 +1,16 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- dégradé radial -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="50%"
+                android:centerY="35%"
+                android:gradientRadius="900dp"
+                android:startColor="@color/felt_light"
+                android:centerColor="@color/felt_mid"
+                android:endColor="@color/felt_dark"/>
+        </shape>
+    </item>
+    <!-- léger bruit (optionnel: omettre si vous n’avez pas de texture) -->
+</layer-list>

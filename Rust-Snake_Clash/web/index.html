@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Snake Clash MVP</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Render like a phone screen (portrait 9:16), centered with letterboxing */
+    canvas {
+      aspect-ratio: 9 / 16;
+      width: min(100vw, calc(100vh * 0.5625));
+      height: min(100vh, calc(100vw * 1.7777778));
+      background: #000;
+      position: relative;
+      border-radius: 18px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+      touch-action: none;
+      display: block;
+    }
+
+    #status {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: rgba(255, 255, 255, 0.92);
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      max-width: min(560px, calc(100vw - 24px));
+      white-space: pre-wrap;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    #menu {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+      pointer-events: auto;
+    }
+
+    #menu .panel {
+      width: min(520px, calc(100vw - 24px));
+      background: rgba(0, 0, 0, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 16px;
+      color: rgba(255, 255, 255, 0.94);
+      font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+    }
+
+    #menu h1 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      letter-spacing: 0.2px;
+    }
+
+    #menu p {
+      margin: 0 0 14px 0;
+      color: rgba(255, 255, 255, 0.82);
+    }
+
+    #menu .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #menu button {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.94);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    #menu button:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    #menu .hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="glcanvas" tabindex="1"></canvas>
+  <div id="menu" hidden>
+    <div class="panel">
+      <h1>Snake Clash MVP</h1>
+      <p>Select a mode to start.</p>
+      <div class="row">
+        <button id="btn-play" type="button">Play (player + bots)</button>
+        <button id="btn-demo-play" type="button">Demo (player + 100 bots)</button>
+        <button id="btn-demo" type="button">Demo (100 bots, spectator)</button>
+      </div>
+      <div class="hint">Tip: you can also open <b>?mode=play</b>, <b>?mode=demo_play</b>, or <b>?mode=demo</b>. Press <b>Esc</b> to show this menu again.</div>
+    </div>
+  </div>
+  <div id="status">Loading…</div>
+
+  <!-- Macroquad/miniquad JS runtime (vendored locally for reliability) -->
+  <script src="mq_js_bundle.js"></script>
+
+  <!-- Your compiled wasm (copied here by build_wasm.sh) -->
+  <script>
+    const gameCanvas = document.getElementById("glcanvas");
+    const status = document.getElementById("status");
+    const menu = document.getElementById("menu");
+    const btnPlay = document.getElementById("btn-play");
+    const btnDemoPlay = document.getElementById("btn-demo-play");
+    const btnDemo = document.getElementById("btn-demo");
+
+    function setStatus(msg) {
+      if (!status) return;
+      status.textContent = msg;
+    }
+
+    window.addEventListener("error", (e) => {
+      setStatus("JS error:\n" + (e?.message || e));
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      setStatus("Promise error:\n" + (e?.reason?.message || e?.reason || e));
+    });
+
+    // Capability check: use a *temporary* canvas so we don't steal the context from mq_js_bundle.
+    const probeCanvas = document.createElement("canvas");
+    const webglOk = !!(probeCanvas.getContext("webgl2") || probeCanvas.getContext("webgl"));
+    if (!webglOk) {
+      setStatus(
+        "WebGL unavailable.\n" +
+          "Try Chrome/Firefox (not the VS Code Simple Browser), and ensure hardware acceleration is enabled."
+      );
+    }
+
+    function resizeCanvasToDisplaySize() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = gameCanvas.getBoundingClientRect();
+      const w = Math.max(1, Math.round(rect.width * dpr));
+      const h = Math.max(1, Math.round(rect.height * dpr));
+      if (gameCanvas.width !== w || gameCanvas.height !== h) {
+        gameCanvas.width = w;
+        gameCanvas.height = h;
+      }
+    }
+
+    window.addEventListener("resize", resizeCanvasToDisplaySize);
+    window.addEventListener("orientationchange", resizeCanvasToDisplaySize);
+    resizeCanvasToDisplaySize();
+
+    // mq_js_bundle.js should define a global `load()` function.
+    const loaderFn = (typeof load === "function") ? load : (typeof window.load === "function" ? window.load : null);
+    if (!loaderFn) {
+      setStatus("Loader missing: mq_js_bundle.js did not define load().\nCheck that /web/mq_js_bundle.js is loading.");
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      const modeParam = (params.get("mode") || "").toLowerCase();
+
+      let wasmStarted = false;
+
+      function setMenuVisible(visible) {
+        if (!menu) return;
+        menu.hidden = !visible;
+        menu.style.display = visible ? "flex" : "none";
+      }
+
+      const wasmByMode = {
+        play: "snake-rust_playable.wasm",
+        demo_play: "snake-rust_demo_play100.wasm",
+        demo: "snake-rust_demo100.wasm",
+      };
+
+      function start(mode) {
+        const wasmFile = wasmByMode[mode];
+        if (!wasmFile) {
+          setStatus("Unknown mode: " + mode);
+          return;
+        }
+
+        setMenuVisible(false);
+        resizeCanvasToDisplaySize();
+
+        // Once wasm is started, we can't switch modes without reloading.
+        if (wasmStarted) {
+          const next = new URLSearchParams(window.location.search);
+          next.set("mode", mode);
+          window.location.search = "?" + next.toString();
+          return;
+        }
+
+        wasmStarted = true;
+
+        // Make the chosen mode shareable/bookmarkable.
+        const next = new URLSearchParams(window.location.search);
+        next.set("mode", mode);
+        history.replaceState(null, "", "?" + next.toString());
+
+        const cacheBust = Date.now().toString(36);
+        setStatus("Loading WASM (" + mode + ")…");
+        loaderFn(wasmFile + "?v=" + cacheBust);
+
+        setTimeout(
+          () =>
+            setStatus(
+              "Running…\n" +
+              "If the screen is still black: open DevTools Console for errors.\n" +
+              "(VS Code Simple Browser is not recommended for WebGL/WASM.)\n" +
+              "\n" +
+              "If a mode fails to load, rebuild WASM:\n" +
+              "- ./web/build_wasm.sh\n" +
+              "- ./web/build_wasm_demo_play.sh\n" +
+              "- ./web/build_wasm_demo.sh"
+            ),
+          1200
+        );
+      }
+
+      // Toggle menu with ESC after the game has started.
+      document.addEventListener("keydown", (e) => {
+        if (!wasmStarted) return;
+        if (e.key === "Escape") {
+          const isVisible = !!(menu && menu.style.display !== "none" && !menu.hidden);
+          setMenuVisible(!isVisible);
+        }
+      });
+
+      const mode = (modeParam === "demo" || modeParam === "demo100")
+        ? "demo"
+        : (modeParam === "demo_play" || modeParam === "demoplay" || modeParam === "demo-play" || modeParam === "demo_play100")
+          ? "demo_play"
+          : (modeParam === "play" ? "play" : null);
+
+      if (mode) {
+        start(mode);
+      } else {
+        setMenuVisible(true);
+        if (btnPlay) btnPlay.addEventListener("click", () => start("play"));
+        if (btnDemoPlay) btnDemoPlay.addEventListener("click", () => start("demo_play"));
+        if (btnDemo) btnDemo.addEventListener("click", () => start("demo"));
+        setStatus("Ready. Choose a mode.");
+      }
+    }
+  </script>
+</body>
+
+</html>

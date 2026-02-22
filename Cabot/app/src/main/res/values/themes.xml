@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.Cabot" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Status bar transparente -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus">true</item>
+
+        <!-- Navigation bar sombre -->
+        <item name="android:navigationBarColor">@android:color/black</item>
+
+        <!-- Empêche le texte de devenir noir -->
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+
+</resources>

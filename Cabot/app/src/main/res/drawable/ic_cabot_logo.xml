@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Fond carte -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:pathData="M7,3h10a2,2 0 0 1 2,2v14a2,2 0 0 1 -2,2H7a2,2 0 0 1 -2,-2V5a2,2 0 0 1 2,-2z"/>
+
+    <!-- Symbole pique -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M12,7c1.5,1.7 3.5,2.8 3.5,4.7 0,1.3 -1.1,2.5 -2.5,2.5 -0.4,0 -0.8,-0.1 -1,-0.2v1h2v1h-5v-1h2v-1c-0.2,0.1 -0.6,0.2 -1,0.2 -1.4,0 -2.5,-1.2 -2.5,-2.5 0,-1.9 2,-3 3.5,-4.7z"/>
+</vector>
